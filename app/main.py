@@ -16,7 +16,8 @@ from dataset import get_val_transforms
 from models import get_model
 
 # ── Paths ─────────────────────────────────────────────────────────
-BASE_DIR = Path(r"C:\Users\MSI\Downloads\dr_detection")
+# Use relative paths for cloud deployment
+BASE_DIR = Path(__file__).parent.parent  # Project root
 CHECKPOINTS = BASE_DIR / "checkpoints"
 OUTPUTS = BASE_DIR / "outputs"
 
