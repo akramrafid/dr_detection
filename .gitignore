@@ -1,0 +1,11 @@
+# Data - never commit raw data to git
+data/
+checkpoints/
+outputs/
+wandb/
+mlruns/
+__pycache__/
+*.pyc
+.env
+*.egg-info/
+.ipynb_checkpoints/

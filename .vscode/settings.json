@@ -1,0 +1,9 @@
+{
+    "python.defaultInterpreterPath": "${env:USERPROFILE}/.conda/envs/dr_detection/python.exe",
+    "editor.formatOnSave": true,
+    "editor.rulers": [88],
+    "files.autoSave": "afterDelay",
+    "jupyter.notebookFileRoot": "${workspaceFolder}",
+    "editor.fontSize": 14,
+    "terminal.integrated.defaultProfile.windows": "Command Prompt"
+}
