@@ -7,15 +7,13 @@ from pathlib import Path
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-# ── Paths ─────────────────────────────────────────────────────────
+# Paths
 BASE_DIR      = Path(r"C:\Users\MSI\Downloads\dr_detection")
 PROCESSED_DIR = BASE_DIR / "data" / "processed" / "train_images"
 SPLITS_CSV    = BASE_DIR / "data" / "splits" / "splits.csv"
 
 
-# ─────────────────────────────────────────────────────────────────
 # AUGMENTATION PIPELINES
-# ─────────────────────────────────────────────────────────────────
 
 def get_train_transforms(img_size=456):
     """Heavy augmentation for training set only."""
@@ -50,7 +48,7 @@ def get_train_transforms(img_size=456):
 
 
 def get_val_transforms(img_size=456):
-    """Minimal transforms for validation and test — no augmentation."""
+    """Minimal transforms for validation and test - no augmentation."""
     return A.Compose([
         A.Resize(img_size, img_size),
         A.Normalize(
@@ -61,9 +59,7 @@ def get_val_transforms(img_size=456):
     ])
 
 
-# ─────────────────────────────────────────────────────────────────
 # CUSTOM DATASET CLASS
-# ─────────────────────────────────────────────────────────────────
 
 class DRDataset(Dataset):
     """
@@ -89,26 +85,24 @@ class DRDataset(Dataset):
         row      = self.df.iloc[idx]
         img_path = self.img_dir / f"{row['id_code']}.png"
 
-        # ── Load image ────────────────────────────────────────────
+        # Load image
         img = cv2.imread(str(img_path))
         if img is None:
             raise FileNotFoundError(f"Image not found: {img_path}")
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        # ── Apply transforms ──────────────────────────────────────
+        # Apply transforms
         if self.transform:
             img = self.transform(image=img)["image"]
 
-        # ── Label as float for regression head ───────────────────
+        # Label as float for regression head
         # We use regression (not classification) for ordinal grading
         label = torch.tensor(row["diagnosis"], dtype=torch.float32)
 
         return img, label
 
 
-# ─────────────────────────────────────────────────────────────────
-# WEIGHTED SAMPLER — fixes class imbalance
-# ─────────────────────────────────────────────────────────────────
+# WEIGHTED SAMPLER - fixes class imbalance
 
 def get_weighted_sampler(df):
     """
@@ -130,35 +124,33 @@ def get_weighted_sampler(df):
     return sampler
 
 
-# ─────────────────────────────────────────────────────────────────
 # DATALOADER FACTORY
-# ─────────────────────────────────────────────────────────────────
 
 def get_dataloaders(img_size=456, batch_size=16):
     """
     Returns train, val, and test DataLoaders ready for training.
     """
-    # ── Load splits ───────────────────────────────────────────────
+    # Load splits
     df       = pd.read_csv(SPLITS_CSV)
     train_df = df[df["split"] == "train"].reset_index(drop=True)
     val_df   = df[df["split"] == "val"].reset_index(drop=True)
     test_df  = df[df["split"] == "test"].reset_index(drop=True)
 
-    # ── Create datasets ───────────────────────────────────────────
+    # Create datasets
     train_dataset = DRDataset(train_df, PROCESSED_DIR, get_train_transforms(img_size))
     val_dataset   = DRDataset(val_df,   PROCESSED_DIR, get_val_transforms(img_size))
     test_dataset  = DRDataset(test_df,  PROCESSED_DIR, get_val_transforms(img_size))
 
-    # ── Weighted sampler for training only ────────────────────────
+    # Weighted sampler for training only
     sampler = get_weighted_sampler(train_df)
 
-    # ── DataLoaders ───────────────────────────────────────────────
+    # DataLoaders
     train_loader = DataLoader(
         train_dataset,
         batch_size  = batch_size,
         sampler     = sampler,       # weighted sampling
         num_workers = 4,
-        pin_memory  = True,          # faster CPU→GPU transfer
+        pin_memory  = True,          # faster CPU->GPU transfer
     )
     val_loader = DataLoader(
         val_dataset,
@@ -178,26 +170,24 @@ def get_dataloaders(img_size=456, batch_size=16):
     return train_loader, val_loader, test_loader
 
 
-# ─────────────────────────────────────────────────────────────────
-# TEST — verify everything works
-# ─────────────────────────────────────────────────────────────────
+# TEST - verify everything works
 
 if __name__ == "__main__":
     import torch
 
-    print("🔄 Testing Dataset and DataLoader...\n")
+    print("Testing Dataset and DataLoader...\n")
 
     train_loader, val_loader, test_loader = get_dataloaders(
         img_size   = 456,
         batch_size = 16
     )
 
-    print(f"📦 Train batches : {len(train_loader)}")
-    print(f"📦 Val batches   : {len(val_loader)}")
-    print(f"📦 Test batches  : {len(test_loader)}")
+    print(f"Train batches : {len(train_loader)}")
+    print(f"Val batches   : {len(val_loader)}")
+    print(f"Test batches  : {len(test_loader)}")
 
-    # ── Load one batch and inspect ────────────────────────────────
-    print("\n🔍 Inspecting one training batch...")
+    # Load one batch and inspect
+    print("\nInspecting one training batch...")
     images, labels = next(iter(train_loader))
 
     print(f"\n  Image batch shape : {images.shape}")
@@ -207,12 +197,12 @@ if __name__ == "__main__":
     print(f"  Image min/max     : {images.min():.3f} / {images.max():.3f}")
     print(f"  Labels in batch   : {labels.tolist()}")
 
-    # ── Check GPU transfer ────────────────────────────────────────
+    # Check GPU transfer
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     images = images.to(device)
     labels = labels.to(device)
     print(f"\n  Device            : {device}")
     print(f"  Images on GPU     : {images.is_cuda}")
-    print(f"\n{'='*50}")
-    print("✅ Dataset class working perfectly!")
+
+    print("Dataset class working perfectly!")
     print("   Ready to build models.")

@@ -4,10 +4,10 @@ import base64
 from PIL import Image
 import io
 
-# ── Page config ───────────────────────────────────────────────────
-st.set_page_config(page_title="DR Detection System", page_icon="🔬", layout="wide")
+# Page config
+st.set_page_config(page_title="DR Detection System", layout="wide")
 
-# ── Custom CSS ────────────────────────────────────────────────────
+# Custom CSS
 st.markdown(
     """
 <style>
@@ -45,11 +45,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── Header ────────────────────────────────────────────────────────
+# Header
 st.markdown(
     """
 <div class="main-header">
-    <h1>🔬 Diabetic Retinopathy Detection System</h1>
+    <h1>Diabetic Retinopathy Detection System</h1>
     <p>AI-powered retinal fundus image analysis using EfficientNet-B5 + ViT-B/16 Ensemble</p>
     <p><small>Python Based Project Development | Group 09 | 10th Semester</small></p>
 </div>
@@ -57,19 +57,19 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── Sidebar ───────────────────────────────────────────────────────
+# Sidebar
 with st.sidebar:
-    st.header("ℹ️ About")
+    st.header("About")
     st.markdown("""
     This system uses deep learning to automatically grade 
     diabetic retinopathy severity from retinal fundus images.
     
     **DR Grades:**
-    - 🟢 Grade 0 — No DR
-    - 🟡 Grade 1 — Mild
-    - 🟠 Grade 2 — Moderate  
-    - 🔴 Grade 3 — Severe
-    - 🟣 Grade 4 — Proliferative
+    - Grade 0 - No DR
+    - Grade 1 - Mild
+    - Grade 2 - Moderate  
+    - Grade 3 - Severe
+    - Grade 4 - Proliferative
     
     **Model Performance:**
     - EfficientNet-B5 QWK: 0.9098
@@ -80,23 +80,23 @@ with st.sidebar:
     3,662 retinal fundus images
     """)
 
-    st.header("⚙️ Settings")
+    st.header("Settings")
     api_url = st.text_input("API URL", value="http://localhost:8000")
 
-    # ── Check API status ──────────────────────────────────────────
-    if st.button("🔌 Check API Status"):
+    # Check API status
+    if st.button("Check API Status"):
         try:
             r = requests.get(f"{api_url}/health", timeout=5)
             if r.status_code == 200:
                 data = r.json()
-                st.success(f"✅ API Running\n\nDevice: {data['device']}")
+                st.success(f"API Running\n\nDevice: {data['device']}")
             else:
-                st.error("❌ API not responding")
+                st.error("API not responding")
         except:
-            st.error("❌ Cannot connect to API")
+            st.error("Cannot connect to API")
 
-# ── Main content ──────────────────────────────────────────────────
-st.markdown("### 📤 Upload Retinal Fundus Image")
+# Main content
+st.markdown("### Upload Retinal Fundus Image")
 
 uploaded_file = st.file_uploader(
     "Choose a retinal fundus image",
@@ -113,10 +113,10 @@ if uploaded_file is not None:
         st.caption(f"File: {uploaded_file.name}")
 
     with col2:
-        if st.button("🔍 Analyse Image", type="primary", use_container_width=True):
-            with st.spinner("🧠 Analysing retinal image..."):
+        if st.button("Analyse Image", type="primary", use_container_width=True):
+            with st.spinner("Analysing retinal image..."):
                 try:
-                    # ── Call API ──────────────────────────────────
+                    # Call API
                     files = {"file": uploaded_file.getvalue()}
                     response = requests.post(
                         f"{api_url}/predict",
@@ -134,9 +134,9 @@ if uploaded_file is not None:
                         result = response.json()
 
                         if "error" in result:
-                            st.error(f"❌ Error: {result['error']}")
+                            st.error(f"Error: {result['error']}")
                         else:
-                            # ── Grade result ──────────────────────
+                            # Grade result
                             grade = result["grade"]
                             color = result["grade_color"]
                             label = result["grade_label"]
@@ -151,7 +151,7 @@ if uploaded_file is not None:
                                 unsafe_allow_html=True,
                             )
 
-                            # ── Metrics ───────────────────────────
+                            # Metrics
                             m1, m2, m3 = st.columns(3)
                             with m1:
                                 st.metric("DR Grade", f"{grade} / 4")
@@ -160,19 +160,19 @@ if uploaded_file is not None:
                             with m3:
                                 st.metric("Raw Score", f"{result['raw_score']:.3f}")
 
-                            # ── Clinical advice ───────────────────
+                            # Clinical advice
                             st.markdown(
                                 f"""
                             <div class="advice-box">
-                                <b>🏥 Clinical Recommendation:</b><br>
+                                <b>Clinical Recommendation:</b><br>
                                 {result["advice"]}
                             </div>
                             """,
                                 unsafe_allow_html=True,
                             )
 
-                            # ── Images side by side ───────────────
-                            st.markdown("### 🔥 Grad-CAM++ Explainability")
+                            # Images side by side
+                            st.markdown("### Grad-CAM++ Explainability")
                             st.caption("Red regions show where the model focused most")
 
                             img_col1, img_col2 = st.columns(2)
@@ -194,14 +194,14 @@ if uploaded_file is not None:
                                 )
 
                     else:
-                        st.error(f"❌ API Error: {response.status_code}")
+                        st.error(f"API Error: {response.status_code}")
 
                 except requests.exceptions.ConnectionError:
-                    st.error("❌ Cannot connect to API. Make sure FastAPI is running!")
+                    st.error("Cannot connect to API. Make sure FastAPI is running!")
                 except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
+                    st.error(f"Error: {str(e)}")
 
-# ── Footer ────────────────────────────────────────────────────────
+# Footer
 st.markdown("---")
 st.markdown(
     """

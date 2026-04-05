@@ -12,7 +12,7 @@ sys.path.append(str(Path(__file__).parent))
 from dataset import get_dataloaders, get_val_transforms
 from models  import get_model
 
-# ── Paths ─────────────────────────────────────────────────────────
+# Paths
 BASE_DIR    = Path(r"C:\Users\MSI\Downloads\dr_detection")
 CHECKPOINTS = BASE_DIR / "checkpoints"
 OUTPUTS     = BASE_DIR / "outputs"
@@ -26,9 +26,7 @@ GRADE_LABELS = {
 }
 
 
-# ─────────────────────────────────────────────────────────────────
 # LOAD TRAINED MODEL FROM CHECKPOINT
-# ─────────────────────────────────────────────────────────────────
 
 def load_checkpoint(model_name, device):
     model, device = get_model(model_name, pretrained=False, device=device)
@@ -39,13 +37,11 @@ def load_checkpoint(model_name, device):
     )
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
-    print(f"  ✅ Loaded {model_name} — Val QWK: {checkpoint['val_qwk']:.4f}")
+    print(f"  Loaded {model_name} - Val QWK: {checkpoint['val_qwk']:.4f}")
     return model
 
 
-# ─────────────────────────────────────────────────────────────────
 # GET PREDICTIONS FROM ONE MODEL
-# ─────────────────────────────────────────────────────────────────
 
 def get_predictions(model, loader, device):
     all_preds  = []
@@ -62,18 +58,14 @@ def get_predictions(model, loader, device):
     return np.array(all_preds), np.array(all_labels)
 
 
-# ─────────────────────────────────────────────────────────────────
 # COMPUTE QWK
-# ─────────────────────────────────────────────────────────────────
 
 def compute_qwk(preds, labels):
     preds_rounded = np.clip(np.round(preds), 0, 4).astype(int)
     return cohen_kappa_score(labels.astype(int), preds_rounded, weights="quadratic")
 
 
-# ─────────────────────────────────────────────────────────────────
 # PLOT CONFUSION MATRIX
-# ─────────────────────────────────────────────────────────────────
 
 def plot_confusion_matrix(labels, preds, title, save_path):
     cm = confusion_matrix(labels, preds)
@@ -93,12 +85,10 @@ def plot_confusion_matrix(labels, preds, title, save_path):
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  💾 Saved: {save_path}")
+    print(f" Saved: {save_path}")
 
 
-# ─────────────────────────────────────────────────────────────────
 # PLOT TRAINING HISTORY
-# ─────────────────────────────────────────────────────────────────
 
 def plot_training_history():
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -127,57 +117,54 @@ def plot_training_history():
     axes[1].axhline(y=0.90, color="green", linestyle=":", label="Target 0.90")
     axes[1].legend(); axes[1].grid(True, alpha=0.3)
 
-    plt.suptitle("Training History — EfficientNet-B5 vs ViT-B/16",
+    plt.suptitle("Training History - EfficientNet-B5 vs ViT-B/16",
                  fontsize=15, fontweight="bold")
     plt.tight_layout()
     save_path = OUTPUTS / "training_history.png"
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  💾 Saved: {save_path}")
+    print(f"   Saved: {save_path}")
 
 
-# ─────────────────────────────────────────────────────────────────
-# MAIN — ENSEMBLE EVALUATION
-# ─────────────────────────────────────────────────────────────────
+# MAIN - ENSEMBLE EVALUATION
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"🖥️  Device: {device}\n")
+    print(f"  Device: {device}\n")
 
-    # ── Load both models ──────────────────────────────────────────
-    print("📂 Loading trained models...")
+    # Load both models
+    print("Loading trained models...")
     eff_model = load_checkpoint("efficientnet_b5", device)
     vit_model = load_checkpoint("vit_b16",         device)
 
-    # ── Get test DataLoaders ──────────────────────────────────────
-    print("\n📦 Loading test data...")
+    # Get test DataLoaders
+    print("\nLoading test data...")
     _, _, test_loader_456 = get_dataloaders(img_size=456, batch_size=16)
     _, _, test_loader_384 = get_dataloaders(img_size=384, batch_size=16)
-    print("   ✅ Test loaders ready\n")
+    print("   Test loaders ready\n")
 
-    # ── Get predictions from each model ──────────────────────────
-    print("🔮 Getting predictions...")
+    # Get predictions from each model
+    print(" Getting predictions...")
     print("   Running EfficientNet-B5...")
     eff_preds, labels = get_predictions(eff_model, test_loader_456, device)
 
     print("   Running ViT-B/16...")
     vit_preds, _      = get_predictions(vit_model, test_loader_384, device)
 
-    # ── Individual model scores ───────────────────────────────────
+    # Individual model scores
     eff_qwk = compute_qwk(eff_preds, labels)
     vit_qwk = compute_qwk(vit_preds, labels)
 
-    print(f"\n{'='*55}")
+    
     print(f"  Individual Model Results (Test Set)")
-    print(f"{'='*55}")
     print(f"  EfficientNet-B5 QWK : {eff_qwk:.4f}")
     print(f"  ViT-B/16        QWK : {vit_qwk:.4f}")
 
-    # ── Ensemble with different weights ──────────────────────────
+    # Ensemble with different weights
     print(f"\n  Ensemble Results (Test Set)")
-    print(f"{'─'*55}")
+    
     print(f"  {'Weights (Eff / ViT)':>25}   {'QWK':>8}")
-    print(f"  {'─'*40}")
+    
 
     best_qwk     = -1
     best_weights = (0.5, 0.5)
@@ -187,36 +174,36 @@ if __name__ == "__main__":
         ensemble_preds = eff_w * eff_preds + vit_w * vit_preds
         ensemble_qwk   = compute_qwk(ensemble_preds, labels)
 
-        marker = " ⬅️  Best" if ensemble_qwk > best_qwk else ""
+        marker = " <-- Best" if ensemble_qwk > best_qwk else ""
         print(f"  {eff_w:.1f} / {vit_w:.1f}  {' '*15}  {ensemble_qwk:.4f}{marker}")
 
         if ensemble_qwk > best_qwk:
             best_qwk     = ensemble_qwk
             best_weights = (eff_w, vit_w)
 
-    # ── Final ensemble with best weights ─────────────────────────
+    # Final ensemble with best weights
     eff_w, vit_w   = best_weights
     ensemble_preds = eff_w * eff_preds + vit_w * vit_preds
     ensemble_rounded = np.clip(np.round(ensemble_preds), 0, 4).astype(int)
 
-    print(f"\n{'='*55}")
-    print(f"  🏆 FINAL RESULTS")
-    print(f"{'='*55}")
+    
+    print(f" FINAL RESULTS")
+    
     print(f"  Best weights         : Eff={eff_w:.1f} / ViT={vit_w:.1f}")
     print(f"  EfficientNet-B5 QWK  : {eff_qwk:.4f}")
     print(f"  ViT-B/16 QWK         : {vit_qwk:.4f}")
-    print(f"  Ensemble QWK         : {best_qwk:.4f}  🎯")
-    print(f"{'='*55}")
+    print(f"  Ensemble QWK         : {best_qwk:.4f}")
+    
 
-    # ── Classification report ─────────────────────────────────────
-    print(f"\n📊 Classification Report (Ensemble):")
+    # Classification report
+    print(f"\nClassification Report (Ensemble):")
     print(classification_report(
         labels.astype(int),
         ensemble_rounded,
         target_names=list(GRADE_LABELS.values())
     ))
 
-    # ── Save best weights ─────────────────────────────────────────
+    # Save best weights
     weights_info = {
         "efficientnet_b5_weight" : eff_w,
         "vit_b16_weight"         : vit_w,
@@ -226,16 +213,16 @@ if __name__ == "__main__":
     }
     with open(OUTPUTS / "ensemble_weights.json", "w") as f:
         json.dump(weights_info, f, indent=2)
-    print(f"\n  💾 Saved ensemble weights to outputs/ensemble_weights.json")
+    print(f"\n  Saved ensemble weights to outputs/ensemble_weights.json")
 
-    # ── Plot confusion matrix ─────────────────────────────────────
-    print(f"\n📈 Generating plots...")
+    # Plot confusion matrix
+    print(f"\n Generating plots...")
     plot_confusion_matrix(
         labels.astype(int), ensemble_rounded,
-        "Ensemble — Confusion Matrix (Test Set)",
+        "Ensemble - Confusion Matrix (Test Set)",
         OUTPUTS / "confusion_matrix.png"
     )
     plot_training_history()
 
-    print(f"\n🎉 Ensemble evaluation complete!")
+    print(f"\nEnsemble evaluation complete!")
     print(f"   All plots saved to: {OUTPUTS}")

@@ -13,7 +13,7 @@ sys.path.append(str(Path(__file__).parent))
 from dataset import get_val_transforms
 from models  import get_model
 
-# ── Paths ─────────────────────────────────────────────────────────
+# Paths
 BASE_DIR    = Path(r"C:\Users\MSI\Downloads\dr_detection")
 CHECKPOINTS = BASE_DIR / "checkpoints"
 PROCESSED   = BASE_DIR / "data" / "processed" / "train_images"
@@ -30,9 +30,7 @@ GRADE_LABELS = {
 }
 
 
-# ─────────────────────────────────────────────────────────────────
 # LOAD MODEL
-# ─────────────────────────────────────────────────────────────────
 
 def load_model(model_name, device):
     model, device = get_model(model_name, pretrained=False, device=device)
@@ -43,13 +41,11 @@ def load_model(model_name, device):
     )
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
-    print(f"  ✅ Loaded {model_name}")
+    print(f"  Loaded {model_name}")
     return model
 
 
-# ─────────────────────────────────────────────────────────────────
 # GET TARGET LAYER FOR GRAD-CAM++
-# ─────────────────────────────────────────────────────────────────
 
 def get_target_layer(model, model_name):
     if model_name == "efficientnet_b5":
@@ -59,34 +55,32 @@ def get_target_layer(model, model_name):
         return [model.backbone.blocks[-1].mlp.fc2]
 
 
-# ─────────────────────────────────────────────────────────────────
 # GENERATE HEATMAP FOR ONE IMAGE
-# ─────────────────────────────────────────────────────────────────
 
 def generate_gradcam(model, model_name, img_path, img_size, device):
     """
     Generates Grad-CAM++ heatmap for a single image.
     Returns original image and heatmap overlay.
     """
-    # ── Load and preprocess image ─────────────────────────────────
+    # Load and preprocess image
     img_orig = cv2.imread(str(img_path))
     img_orig = cv2.cvtColor(img_orig, cv2.COLOR_BGR2RGB)
     img_orig = cv2.resize(img_orig, (img_size, img_size))
 
-    # ── Transform for model ───────────────────────────────────────
+    # Transform for model
     transform  = get_val_transforms(img_size)
     img_tensor = transform(image=img_orig)["image"]
     img_tensor = img_tensor.unsqueeze(0).to(device)  # add batch dim
 
-    # ── Normalize image for display ───────────────────────────────
+    # Normalize image for display
     img_display = img_orig.astype(np.float32) / 255.0
 
-    # ── Get prediction ────────────────────────────────────────────
+    # Get prediction
     with torch.no_grad():
         pred = model(img_tensor).item()
     pred_grade = int(np.clip(round(pred), 0, 4))
 
-    # ── Generate Grad-CAM++ ───────────────────────────────────────
+    # Generate Grad-CAM++
     target_layers = get_target_layer(model, model_name)
     cam = GradCAMPlusPlus(model=model, target_layers=target_layers)
 
@@ -96,7 +90,7 @@ def generate_gradcam(model, model_name, img_path, img_size, device):
 )
     grayscale_cam = grayscale_cam[0]  # remove batch dim
 
-    # ── Overlay heatmap on image ──────────────────────────────────
+    # Overlay heatmap on image
     visualization = show_cam_on_image(
         img_display,
         grayscale_cam,
@@ -108,9 +102,7 @@ def generate_gradcam(model, model_name, img_path, img_size, device):
     return img_orig, visualization, pred_grade, pred
 
 
-# ─────────────────────────────────────────────────────────────────
 # GENERATE HEATMAPS FOR SAMPLE IMAGES PER GRADE
-# ─────────────────────────────────────────────────────────────────
 
 def generate_all_heatmaps(model, model_name, img_size, samples_per_grade=3):
     device = next(model.parameters()).device
@@ -142,7 +134,7 @@ def generate_all_heatmaps(model, model_name, img_size, samples_per_grade=3):
                     model, model_name, img_path, img_size, device
                 )
 
-                # ── Original image ────────────────────────────────
+                # Original image
                 ax_orig = axes[grade][col_idx * 2]
                 ax_orig.imshow(orig)
                 ax_orig.axis("off")
@@ -151,7 +143,7 @@ def generate_all_heatmaps(model, model_name, img_size, samples_per_grade=3):
                     fontsize=9, fontweight="bold", color="green"
                 )
 
-                # ── Heatmap overlay ───────────────────────────────
+                # Heatmap overlay
                 ax_heat = axes[grade][col_idx * 2 + 1]
                 ax_heat.imshow(heatmap)
                 ax_heat.axis("off")
@@ -162,7 +154,7 @@ def generate_all_heatmaps(model, model_name, img_size, samples_per_grade=3):
                 )
 
             except Exception as e:
-                print(f"    ⚠️ Error on {row['id_code']}: {e}")
+                print(f"    Error on {row['id_code']}: {e}")
 
         # Grade label on left
         axes[grade][0].set_ylabel(
@@ -172,7 +164,7 @@ def generate_all_heatmaps(model, model_name, img_size, samples_per_grade=3):
         )
 
     plt.suptitle(
-        f"Grad-CAM++ Heatmaps — {model_name.upper()}\n"
+        f"Grad-CAM++ Heatmaps - {model_name.upper()}\n"
         f"Green title = correct prediction | Red title = wrong prediction",
         fontsize=14, fontweight="bold", y=1.01
     )
@@ -181,21 +173,17 @@ def generate_all_heatmaps(model, model_name, img_size, samples_per_grade=3):
     save_path = GRADCAM_DIR / f"{model_name}_gradcam.png"
     plt.savefig(save_path, dpi=120, bbox_inches="tight")
     plt.close()
-    print(f"  💾 Saved: {save_path}")
+    print(f"  Saved: {save_path}")
 
 
-# ─────────────────────────────────────────────────────────────────
 # MAIN
-# ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"🖥️  Device: {device}\n")
+    print(f"Device: {device}\n")
 
-    # ── EfficientNet-B5 heatmaps only ─────────────────────────────
-    print("=" * 55)
-    print("  Generating Grad-CAM++ for EfficientNet-B5")
-    print("=" * 55)
+    # EfficientNet-B5 heatmaps only
+    print("Generating Grad-CAM++ for EfficientNet-B5")
     eff_model = load_model("efficientnet_b5", device)
     generate_all_heatmaps(
         eff_model, "efficientnet_b5",
@@ -206,7 +194,5 @@ if __name__ == "__main__":
     del eff_model
     torch.cuda.empty_cache()
 
-    print(f"\n{'='*55}")
-    print(f"🎉 Grad-CAM++ complete!")
-    print(f"   Heatmaps saved to: {GRADCAM_DIR}")
-    print(f"{'='*55}")
+    print(f"\nGrad-CAM++ complete!")
+    print(f"Heatmaps saved to: {GRADCAM_DIR}")

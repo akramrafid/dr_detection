@@ -15,7 +15,7 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 from dataset import get_val_transforms
 from models import get_model
 
-# ── Paths ─────────────────────────────────────────────────────────
+# Paths
 # Use relative paths for cloud deployment
 BASE_DIR = Path(__file__).parent.parent  # Project root
 CHECKPOINTS = BASE_DIR / "checkpoints"
@@ -39,7 +39,7 @@ GRADE_ADVICE = {
     4: "Proliferative DR detected. Immediate referral to ophthalmologist required.",
 }
 
-# ── FastAPI app ───────────────────────────────────────────────────
+# FastAPI app
 app = FastAPI(
     title="Diabetic Retinopathy Detection API",
     description="AI-powered DR grading from retinal fundus images",
@@ -54,7 +54,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Load models once at startup ───────────────────────────────────
+# Load models once at startup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 eff_model = None
 
@@ -62,7 +62,7 @@ eff_model = None
 @app.on_event("startup")
 async def load_models():
     global eff_model
-    print(f"🚀 Loading models on {device}...")
+    print(f"Loading models on {device}...")
 
     eff_model, _ = get_model("efficientnet_b5", pretrained=False, device=device)
     checkpoint = torch.load(
@@ -70,12 +70,10 @@ async def load_models():
     )
     eff_model.load_state_dict(checkpoint["state_dict"])
     eff_model.eval()
-    print("✅ EfficientNet-B5 loaded!")
+    print("EfficientNet-B5 loaded!")
 
 
-# ─────────────────────────────────────────────────────────────────
 # PREPROCESSING
-# ─────────────────────────────────────────────────────────────────
 
 
 def preprocess_image(img_bytes, img_size=456):
@@ -100,9 +98,7 @@ def preprocess_image(img_bytes, img_size=456):
     return img, img_processed
 
 
-# ─────────────────────────────────────────────────────────────────
 # GRAD-CAM++ HEATMAP
-# ─────────────────────────────────────────────────────────────────
 
 
 def generate_heatmap(img_tensor, img_display):
@@ -121,39 +117,37 @@ def generate_heatmap(img_tensor, img_display):
     return visualization
 
 
-# ─────────────────────────────────────────────────────────────────
 # PREDICT ENDPOINT
-# ─────────────────────────────────────────────────────────────────
 
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
-        # ── Read image ────────────────────────────────────────────
+        # Read image
         img_bytes = await file.read()
 
-        # ── Preprocess ────────────────────────────────────────────
+        # Preprocess
         img_orig, img_processed = preprocess_image(img_bytes, img_size=456)
 
-        # ── Transform for model ───────────────────────────────────
+        # Transform for model
         transform = get_val_transforms(456)
         img_tensor = transform(image=img_processed)["image"]
         img_tensor = img_tensor.unsqueeze(0).to(device)
 
-        # ── Predict ───────────────────────────────────────────────
+        # Predict
         with torch.no_grad():
             pred_raw = eff_model(img_tensor).item()
 
         pred_grade = int(np.clip(round(pred_raw), 0, 4))
         confidence = round(float(1 - abs(pred_raw - round(pred_raw))), 3)
 
-        # ── Heatmap ───────────────────────────────────────────────
+        # Heatmap
         heatmap = generate_heatmap(img_tensor, img_processed)
         heatmap_b64 = base64.b64encode(
             cv2.imencode(".png", cv2.cvtColor(heatmap, cv2.COLOR_RGB2BGR))[1]
         ).decode("utf-8")
 
-        # ── Original image b64 ────────────────────────────────────
+        # Original image b64
         orig_b64 = base64.b64encode(
             cv2.imencode(".png", cv2.cvtColor(img_orig, cv2.COLOR_RGB2BGR))[1]
         ).decode("utf-8")
