@@ -36,8 +36,10 @@ def get_train_transforms(img_size=456):
         ),
         A.GridDistortion(p=0.3),
         A.CoarseDropout(
-            
-            
+            num_holes_range=(1, 3),
+            hole_height_range=(20, 40),
+            hole_width_range=(20, 40),
+            p=0.3,
         ),
         A.Normalize(
             mean=[0.485, 0.456, 0.406],   # ImageNet mean
