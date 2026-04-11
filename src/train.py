@@ -245,13 +245,13 @@ def train_model(
 
 if __name__ == "__main__":
 
-    # Train ViT-B/16
-    print("\nSTEP 2 - Training ViT-B/16")
+    # Train EfficientNet-B5
+    print("\nTraining EfficientNet-B5")
     best_qwk, history = train_model(
-        model_name = "vit_b16",
-        img_size   = 384,
-        batch_size = 8,
+        model_name = "efficientnet_b5",
+        img_size   = 456,
+        batch_size = 16,
         num_epochs = 25,
-        lr         = 5e-5,
+        lr         = 1e-4,
         patience   = 7,
     )

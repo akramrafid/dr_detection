@@ -50,9 +50,8 @@ def load_model(model_name, device):
 def get_target_layer(model, model_name):
     if model_name == "efficientnet_b5":
         return [model.backbone.conv_head]
-    elif model_name == "vit_b16":
-        # ViT needs the last transformer block's MLP layer
-        return [model.backbone.blocks[-1].mlp.fc2]
+    else:
+        raise ValueError(f"Unknown model: {model_name}. Only 'efficientnet_b5' is supported.")
 
 
 # GENERATE HEATMAP FOR ONE IMAGE

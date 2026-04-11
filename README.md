@@ -1,6 +1,6 @@
 # Diabetic Retinopathy Detection System
 
-An AI-powered system for automated grading of diabetic retinopathy severity from retinal fundus images. Built with PyTorch, FastAPI, and Streamlit. The system uses a dual-model ensemble of EfficientNet-B5 and Vision Transformer (ViT-B/16) with Grad-CAM++ explainability to provide clinically interpretable predictions.
+An AI-powered system for automated grading of diabetic retinopathy severity from retinal fundus images. Built with PyTorch, FastAPI, and Streamlit. The system uses EfficientNet-B5 with Grad-CAM++ explainability to provide clinically interpretable predictions.
 
 **Course:** Python Based Project Development | **Group:** 09 | **Semester:** 10th
 
@@ -17,7 +17,6 @@ An AI-powered system for automated grading of diabetic retinopathy severity from
 - [Preprocessing Pipeline](#preprocessing-pipeline)
 - [Model Architecture](#model-architecture)
 - [Training Strategy](#training-strategy)
-- [Ensemble Method](#ensemble-method)
 - [Explainability](#explainability)
 - [Results](#results)
 - [Installation](#installation)
@@ -46,7 +45,7 @@ The system treats this as an **ordinal regression** problem (not classification)
 
 ## Key Features
 
-- **Dual-Model Ensemble:** EfficientNet-B5 (local features) + ViT-B/16 (global attention) with optimized blending weights
+- **EfficientNet-B5:** Pretrained backbone with custom regression head for ordinal DR grading
 - **Ben Graham Preprocessing:** CLAHE enhancement, Gaussian illumination normalization, and circular masking
 - **Grad-CAM++ Explainability:** Visual heatmaps showing exactly where the model focuses on the retina
 - **Class Imbalance Handling:** Weighted random sampling to address skewed grade distribution
@@ -69,9 +68,9 @@ dr_detection/
 |-- src/
 |   |-- preprocessing.py        # Ben Graham preprocessing + train/val/test splits
 |   |-- dataset.py              # PyTorch Dataset, DataLoader, augmentation pipelines
-|   |-- models.py               # EfficientNet-B5 and ViT-B/16 model definitions
+|   |-- models.py               # EfficientNet-B5 model definition
 |   |-- train.py                # Training loop with early stopping and scheduling
-|   |-- ensemble.py             # Ensemble evaluation and weight optimization
+|   |-- ensemble.py             # Model evaluation and metrics
 |   |-- explainability.py       # Grad-CAM++ heatmap generation
 |
 |-- notebooks/
@@ -84,16 +83,14 @@ dr_detection/
 |
 |-- checkpoints/
 |   |-- efficientnet_b5_best.pth  # Best EfficientNet-B5 checkpoint
-|   |-- vit_b16_best.pth          # Best ViT-B/16 checkpoint
 |
 |-- outputs/
 |   |-- class_distribution.png    # Class distribution visualization
 |   |-- sample_images.png         # Sample preprocessed images
 |   |-- training_history.png      # Loss and QWK curves
-|   |-- confusion_matrix.png      # Ensemble confusion matrix
+|   |-- confusion_matrix.png      # Confusion matrix
 |   |-- efficientnet_b5_history.json
-|   |-- vit_b16_history.json
-|   |-- ensemble_weights.json     # Optimized ensemble weights
+|   |-- evaluation_results.json   # Model evaluation results
 |   |-- gradcam/                  # Grad-CAM++ heatmap outputs
 |
 |-- requirements.txt
@@ -147,16 +144,7 @@ This processes all raw images and creates stratified train/val/test splits saved
 - **Output:** Sigmoid scaled to [0, 4] range
 - **Strengths:** Excellent at detecting local features like microaneurysms and hemorrhages
 
-### Vision Transformer (ViT-B/16)
-
-- **Backbone:** `timm` pretrained ViT-B/16 (ImageNet weights, 384px)
-- **Input size:** 384x384 pixels
-- **Feature dimension:** 768
-- **Head:** Dropout(0.3) -> Linear(768, 256) -> ReLU -> Dropout(0.15) -> Linear(256, 1) -> Sigmoid
-- **Output:** Sigmoid scaled to [0, 4] range
-- **Strengths:** Global attention mechanism captures peripheral retinal lesions and spatial relationships
-
-Both models use:
+The model uses:
 - **Ordinal regression** (not classification) with Sigmoid output scaled to [0, 4]
 - **Custom regression head** replacing the default classifier
 
@@ -164,19 +152,19 @@ Both models use:
 
 ## Training Strategy
 
-| Hyperparameter         | EfficientNet-B5 | ViT-B/16    |
-|------------------------|-----------------|-------------|
-| Image size             | 456x456         | 384x384     |
-| Batch size             | 16              | 8           |
-| Learning rate          | 1e-4            | 5e-5        |
-| Optimizer              | AdamW           | AdamW       |
-| Weight decay           | 1e-5            | 1e-5        |
-| Scheduler              | CosineAnnealingWarmRestarts (T0=10) | Same |
-| Loss function          | SmoothL1 (Huber)| SmoothL1    |
-| Early stopping patience| 7 epochs        | 7 epochs    |
-| Max epochs             | 25              | 25          |
-| Mixed precision        | FP16            | FP16        |
-| Gradient clipping      | max_norm=1.0    | max_norm=1.0|
+| Hyperparameter         | EfficientNet-B5 |
+|------------------------|-----------------|
+| Image size             | 456x456         |
+| Batch size             | 16              |
+| Learning rate          | 1e-4            |
+| Optimizer              | AdamW           |
+| Weight decay           | 1e-5            |
+| Scheduler              | CosineAnnealingWarmRestarts (T0=10) |
+| Loss function          | SmoothL1 (Huber)|
+| Early stopping patience| 7 epochs        |
+| Max epochs             | 25              |
+| Mixed precision        | FP16            |
+| Gradient clipping      | max_norm=1.0    |
 
 **Data Augmentation (training only):**
 - Horizontal/vertical flip
@@ -198,36 +186,11 @@ python src/train.py
 
 ---
 
-## Ensemble Method
-
-The final prediction combines both models with optimized weights:
-
-```
-ensemble_prediction = w1 * efficientnet_prediction + w2 * vit_prediction
-```
-
-Weight optimization is performed via grid search over `w1` from 0.3 to 0.7 (step 0.1), selecting the combination that maximizes QWK on the test set.
-
-**Run ensemble evaluation:**
-```bash
-python src/ensemble.py
-```
-
-This outputs:
-- Individual model QWK scores
-- Best ensemble weights
-- Confusion matrix
-- Classification report
-- Training history plots
-
----
-
 ## Explainability
 
 The system uses **Grad-CAM++** to generate visual heatmaps showing which regions of the retina the model focuses on when making predictions.
 
 - **EfficientNet-B5:** Target layer is `conv_head` (last convolutional layer)
-- **ViT-B/16:** Target layer is the last transformer block's MLP output
 
 Heatmaps are overlaid on the original image using a JET colormap, making it easy for clinicians to verify the model's reasoning.
 
@@ -243,10 +206,8 @@ python src/explainability.py
 | Model              | Test QWK |
 |--------------------|----------|
 | EfficientNet-B5    | 0.9098   |
-| ViT-B/16           | 0.9090   |
-| Ensemble (Best)    | 0.9030   |
 
-The models achieve strong agreement with ophthalmologist-level grading, with QWK scores above 0.90 indicating near-expert performance.
+The model achieves strong agreement with ophthalmologist-level grading, with a QWK score above 0.90 indicating near-expert performance.
 
 ---
 
@@ -305,21 +266,21 @@ This will:
 - Save processed images to `data/processed/train_images/`
 - Create stratified train/val/test splits at `data/splits/splits.csv`
 
-### Step 2: Train Models
+### Step 2: Train Model
 
 ```bash
 python src/train.py
 ```
 
-Trains both EfficientNet-B5 and ViT-B/16 with early stopping. Best checkpoints are saved to `checkpoints/`.
+Trains EfficientNet-B5 with early stopping. Best checkpoint is saved to `checkpoints/`.
 
-### Step 3: Evaluate Ensemble
+### Step 3: Evaluate Model
 
 ```bash
 python src/ensemble.py
 ```
 
-Runs both models on the test set, finds optimal blend weights, and generates evaluation outputs.
+Runs the model on the test set and generates evaluation outputs including confusion matrix and classification report.
 
 ### Step 4: Generate Grad-CAM++ Heatmaps
 
@@ -410,7 +371,7 @@ Make sure to upload the model checkpoint (`checkpoints/efficientnet_b5_best.pth`
 | Category        | Technology                                      |
 |-----------------|--------------------------------------------------|
 | Deep Learning   | PyTorch 2.1, timm                                |
-| Models          | EfficientNet-B5, ViT-B/16                        |
+| Model           | EfficientNet-B5                                  |
 | Preprocessing   | OpenCV, Albumentations                           |
 | Explainability  | pytorch-grad-cam (Grad-CAM++)                    |
 | API             | FastAPI, Uvicorn                                 |

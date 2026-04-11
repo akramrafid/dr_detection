@@ -48,53 +48,16 @@ class EfficientNetB5(nn.Module):
         return output.squeeze(1) * 4.0
 
 
-# VISION TRANSFORMER - ViT-B/16
-
-class ViTB16(nn.Module):
-    """
-    Vision Transformer ViT-B/16 with regression head.
-    Global attention captures peripheral retinal lesions.
-    Output: single value in range [0, 4] representing DR grade.
-    """
-
-    def __init__(self, pretrained=True, dropout=0.3, img_size=384):
-        super().__init__()
-
-        # Load pretrained backbone
-        self.backbone = timm.create_model(
-            "vit_base_patch16_384",
-            pretrained  = pretrained,
-            num_classes = 0,           # remove default classifier
-            img_size    = img_size
-        )
-
-        # Get feature dimension
-        num_features = self.backbone.num_features  # 768 for ViT-B
-
-        # Custom regression head
-        self.head = nn.Sequential(
-            nn.Dropout(dropout),
-            nn.Linear(num_features, 256),
-            nn.ReLU(),
-            nn.Dropout(dropout / 2),
-            nn.Linear(256, 1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        features = self.backbone(x)
-        output   = self.head(features)
-        return output.squeeze(1) * 4.0
 
 
 # MODEL FACTORY - easy model creation
 
-def get_model(model_name, pretrained=True, device=None):
+def get_model(model_name="efficientnet_b5", pretrained=True, device=None):
     """
     Returns the requested model moved to the correct device.
 
     Args:
-        model_name : 'efficientnet_b5' or 'vit_b16'
+        model_name : 'efficientnet_b5'
         pretrained : use ImageNet pretrained weights
         device     : torch device (auto-detected if None)
     """
@@ -103,10 +66,8 @@ def get_model(model_name, pretrained=True, device=None):
 
     if model_name == "efficientnet_b5":
         model = EfficientNetB5(pretrained=pretrained)
-    elif model_name == "vit_b16":
-        model = ViTB16(pretrained=pretrained)
     else:
-        raise ValueError(f"Unknown model: {model_name}. Choose 'efficientnet_b5' or 'vit_b16'")
+        raise ValueError(f"Unknown model: {model_name}. Only 'efficientnet_b5' is supported.")
 
     model = model.to(device)
     return model, device
@@ -144,30 +105,8 @@ if __name__ == "__main__":
     print(f"  Trainable params : {trainable:,}")
     print(f"  VRAM used        : {torch.cuda.memory_allocated()/1e9:.2f} GB")
 
-    # Clear GPU memory
     del model_eff, dummy, out
     torch.cuda.empty_cache()
 
-    # Test ViT-B/16
-    print("\nTesting ViT-B/16")
-    model_vit, device = get_model("vit_b16", pretrained=True)
-
-    # Dummy batch - 2 images at 384x384
-    dummy = torch.randn(2, 3, 384, 384).to(device)
-    with torch.no_grad():
-        out = model_vit(dummy)
-
-    total, trainable = count_parameters(model_vit)
-    print(f"  Input shape      : {dummy.shape}")
-    print(f"  Output shape     : {out.shape}")
-    print(f"  Output values    : {out.tolist()}")
-    print(f"  Output range     : [{out.min():.3f}, {out.max():.3f}]  should be in [0,4]")
-    print(f"  Total params     : {total:,}")
-    print(f"  Trainable params : {trainable:,}")
-    print(f"  VRAM used        : {torch.cuda.memory_allocated()/1e9:.2f} GB")
-
-    del model_vit, dummy, out
-    torch.cuda.empty_cache()
-
-    print("\nBoth models working perfectly!")
+    print("\nEfficientNet-B5 model working perfectly!")
     print("Ready for training.")

@@ -93,20 +93,25 @@ def plot_confusion_matrix(labels, preds, title, save_path):
 def plot_training_history():
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    for model_name, color in [("efficientnet_b5", "#2E6DA4"), ("vit_b16", "#E74C3C")]:
-        history_path = OUTPUTS / f"{model_name}_history.json"
-        if not history_path.exists():
-            continue
-        with open(history_path) as f:
-            h = json.load(f)
+    model_name = "efficientnet_b5"
+    color = "#2E6DA4"
+    history_path = OUTPUTS / f"{model_name}_history.json"
 
-        epochs = range(1, len(h["val_qwk"]) + 1)
-        label  = "EfficientNet-B5" if model_name == "efficientnet_b5" else "ViT-B/16"
+    if not history_path.exists():
+        print(f"   No training history found at {history_path}")
+        plt.close()
+        return
 
-        axes[0].plot(epochs, h["train_loss"], linestyle="--", color=color, alpha=0.6)
-        axes[0].plot(epochs, h["val_loss"],   linestyle="-",  color=color, label=label)
-        axes[1].plot(epochs, h["train_qwk"],  linestyle="--", color=color, alpha=0.6)
-        axes[1].plot(epochs, h["val_qwk"],    linestyle="-",  color=color, label=label)
+    with open(history_path) as f:
+        h = json.load(f)
+
+    epochs = range(1, len(h["val_qwk"]) + 1)
+    label  = "EfficientNet-B5"
+
+    axes[0].plot(epochs, h["train_loss"], linestyle="--", color=color, alpha=0.6, label=f"{label} (train)")
+    axes[0].plot(epochs, h["val_loss"],   linestyle="-",  color=color, label=f"{label} (val)")
+    axes[1].plot(epochs, h["train_qwk"],  linestyle="--", color=color, alpha=0.6, label=f"{label} (train)")
+    axes[1].plot(epochs, h["val_qwk"],    linestyle="-",  color=color, label=f"{label} (val)")
 
     axes[0].set_title("Loss per Epoch",    fontsize=13, fontweight="bold")
     axes[0].set_xlabel("Epoch"); axes[0].set_ylabel("Loss")
@@ -117,7 +122,7 @@ def plot_training_history():
     axes[1].axhline(y=0.90, color="green", linestyle=":", label="Target 0.90")
     axes[1].legend(); axes[1].grid(True, alpha=0.3)
 
-    plt.suptitle("Training History - EfficientNet-B5 vs ViT-B/16",
+    plt.suptitle("Training History - EfficientNet-B5",
                  fontsize=15, fontweight="bold")
     plt.tight_layout()
     save_path = OUTPUTS / "training_history.png"
@@ -126,103 +131,58 @@ def plot_training_history():
     print(f"   Saved: {save_path}")
 
 
-# MAIN - ENSEMBLE EVALUATION
+# MAIN - MODEL EVALUATION
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"  Device: {device}\n")
 
-    # Load both models
-    print("Loading trained models...")
+    # Load model
+    print("Loading trained model...")
     eff_model = load_checkpoint("efficientnet_b5", device)
-    vit_model = load_checkpoint("vit_b16",         device)
 
-    # Get test DataLoaders
+    # Get test DataLoader
     print("\nLoading test data...")
-    _, _, test_loader_456 = get_dataloaders(img_size=456, batch_size=16)
-    _, _, test_loader_384 = get_dataloaders(img_size=384, batch_size=16)
-    print("   Test loaders ready\n")
+    _, _, test_loader = get_dataloaders(img_size=456, batch_size=16)
+    print("   Test loader ready\n")
 
-    # Get predictions from each model
+    # Get predictions
     print(" Getting predictions...")
     print("   Running EfficientNet-B5...")
-    eff_preds, labels = get_predictions(eff_model, test_loader_456, device)
+    eff_preds, labels = get_predictions(eff_model, test_loader, device)
 
-    print("   Running ViT-B/16...")
-    vit_preds, _      = get_predictions(vit_model, test_loader_384, device)
-
-    # Individual model scores
+    # Model score
     eff_qwk = compute_qwk(eff_preds, labels)
-    vit_qwk = compute_qwk(vit_preds, labels)
+    eff_rounded = np.clip(np.round(eff_preds), 0, 4).astype(int)
 
-    
-    print(f"  Individual Model Results (Test Set)")
+    print(f"\n  Model Results (Test Set)")
     print(f"  EfficientNet-B5 QWK : {eff_qwk:.4f}")
-    print(f"  ViT-B/16        QWK : {vit_qwk:.4f}")
-
-    # Ensemble with different weights
-    print(f"\n  Ensemble Results (Test Set)")
-    
-    print(f"  {'Weights (Eff / ViT)':>25}   {'QWK':>8}")
-    
-
-    best_qwk     = -1
-    best_weights = (0.5, 0.5)
-
-    for eff_w in np.arange(0.3, 0.8, 0.1):
-        vit_w         = round(1.0 - eff_w, 1)
-        ensemble_preds = eff_w * eff_preds + vit_w * vit_preds
-        ensemble_qwk   = compute_qwk(ensemble_preds, labels)
-
-        marker = " <-- Best" if ensemble_qwk > best_qwk else ""
-        print(f"  {eff_w:.1f} / {vit_w:.1f}  {' '*15}  {ensemble_qwk:.4f}{marker}")
-
-        if ensemble_qwk > best_qwk:
-            best_qwk     = ensemble_qwk
-            best_weights = (eff_w, vit_w)
-
-    # Final ensemble with best weights
-    eff_w, vit_w   = best_weights
-    ensemble_preds = eff_w * eff_preds + vit_w * vit_preds
-    ensemble_rounded = np.clip(np.round(ensemble_preds), 0, 4).astype(int)
-
-    
-    print(f" FINAL RESULTS")
-    
-    print(f"  Best weights         : Eff={eff_w:.1f} / ViT={vit_w:.1f}")
-    print(f"  EfficientNet-B5 QWK  : {eff_qwk:.4f}")
-    print(f"  ViT-B/16 QWK         : {vit_qwk:.4f}")
-    print(f"  Ensemble QWK         : {best_qwk:.4f}")
-    
 
     # Classification report
-    print(f"\nClassification Report (Ensemble):")
+    print(f"\nClassification Report (EfficientNet-B5):")
     print(classification_report(
         labels.astype(int),
-        ensemble_rounded,
+        eff_rounded,
         target_names=list(GRADE_LABELS.values())
     ))
 
-    # Save best weights
-    weights_info = {
-        "efficientnet_b5_weight" : eff_w,
-        "vit_b16_weight"         : vit_w,
-        "ensemble_test_qwk"      : best_qwk,
-        "efficientnet_b5_test_qwk": eff_qwk,
-        "vit_b16_test_qwk"       : vit_qwk,
+    # Save results
+    results_info = {
+        "model": "efficientnet_b5",
+        "test_qwk": eff_qwk,
     }
-    with open(OUTPUTS / "ensemble_weights.json", "w") as f:
-        json.dump(weights_info, f, indent=2)
-    print(f"\n  Saved ensemble weights to outputs/ensemble_weights.json")
+    with open(OUTPUTS / "evaluation_results.json", "w") as f:
+        json.dump(results_info, f, indent=2)
+    print(f"\n  Saved evaluation results to outputs/evaluation_results.json")
 
     # Plot confusion matrix
     print(f"\n Generating plots...")
     plot_confusion_matrix(
-        labels.astype(int), ensemble_rounded,
-        "Ensemble - Confusion Matrix (Test Set)",
+        labels.astype(int), eff_rounded,
+        "EfficientNet-B5 - Confusion Matrix (Test Set)",
         OUTPUTS / "confusion_matrix.png"
     )
     plot_training_history()
 
-    print(f"\nEnsemble evaluation complete!")
+    print(f"\nEvaluation complete!")
     print(f"   All plots saved to: {OUTPUTS}")
