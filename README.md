@@ -203,9 +203,14 @@ python src/explainability.py
 
 ## Results
 
-| Model              | Test QWK |
-|--------------------|----------|
-| EfficientNet-B5    | 0.9098   |
+| Metric                 | Value          |
+|------------------------|----------------|
+| Best Val QWK           | 0.9089         |
+| Best Epoch             | 8 / 15         |
+| Early Stopping         | Epoch 15       |
+| Total Parameters       | 28,865,585     |
+| Training Time/Epoch    | ~110s          |
+| GPU                    | RTX 3060 (12.9 GB VRAM) |
 
 The model achieves strong agreement with ophthalmologist-level grading, with a QWK score above 0.90 indicating near-expert performance.
 
