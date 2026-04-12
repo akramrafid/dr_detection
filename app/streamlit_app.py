@@ -50,7 +50,7 @@ st.markdown(
     """
 <div class="main-header">
     <h1>Diabetic Retinopathy Detection System</h1>
-    <p>AI-powered retinal fundus image analysis using EfficientNet-B5 + ViT-B/16 Ensemble</p>
+    <p>AI-powered retinal fundus image analysis using EfficientNet-B5</p>
     <p><small>Python Based Project Development | Group 09 | 10th Semester</small></p>
 </div>
 """,
@@ -72,9 +72,8 @@ with st.sidebar:
     - Grade 4 - Proliferative
     
     **Model Performance:**
-    - EfficientNet-B5 QWK: 0.9098
-    - ViT-B/16 QWK: 0.9090
-    - Ensemble QWK: **0.9030**
+    - Val QWK: 0.9089
+    - Test QWK: **0.8979**
     
     **Dataset:** APTOS 2019
     3,662 retinal fundus images
