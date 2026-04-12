@@ -26,6 +26,9 @@ An AI-powered system for automated grading of diabetic retinopathy severity from
 - [Technologies Used](#technologies-used)
 
 ---
+<img width="1919" height="1041" alt="image" src="https://github.com/user-attachments/assets/3ac77ec8-1846-4558-9c47-a6e7f8f7c15e" />
+<img width="1920" height="1439" alt="screencapture-localhost-8502-2026-04-12-11_23_30" src="https://github.com/user-attachments/assets/a06e7fff-e3d9-46e6-89d1-f53ff75a5a22" />
+
 
 ## Overview
 
